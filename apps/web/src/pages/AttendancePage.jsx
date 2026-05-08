@@ -1,231 +1,139 @@
 import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
-import { Download, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Calendar, TrendingUp, CheckCircle, XCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx';
+import { Button } from '@/components/ui/button.jsx';
+import { Badge } from '@/components/ui/badge.jsx';
 import { useAuth } from '@/contexts/AuthContext';
 import pb from '@/lib/pocketbaseClient';
+import { toast } from 'sonner';
 
 const AttendancePage = () => {
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const [selectedMonth, setSelectedMonth] = useState('April 2025');
-  const [attendanceData, setAttendanceData] = useState(null);
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState({ totalDays: 0, presentDays: 0, absentDays: 0, percentage: 0 });
 
   useEffect(() => {
     const fetchAttendance = async () => {
       if (!currentUser) return;
-
       try {
-        const [month, year] = selectedMonth.split(' ');
-        const records = await pb.collection('attendance').getFullList({
-          filter: `studentId = "${currentUser.id}" && month = "${month}" && year = ${year}`,
+        const records = await pb.collection('attendece').getFullList({
+          filter: `studentId = "${currentUser.id}"`,
+          sort: '-date',
           $autoCancel: false
         });
-
-        if (records.length > 0) {
-          setAttendanceData(records[0]);
-        } else {
-          setAttendanceData(null);
-        }
+        setAttendanceRecords(records);
+        const totalDays = records.length;
+        const presentDays = records.filter(r => r.status === 'Present').length;
+        const absentDays = totalDays - presentDays;
+        const percentage = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(1) : 0;
+        setSummary({ totalDays, presentDays, absentDays, percentage });
       } catch (error) {
-        console.error('Error fetching attendance:', error);
+        toast.error('Failed to load attendance');
       } finally {
         setLoading(false);
       }
     };
-
     fetchAttendance();
-  }, [currentUser, selectedMonth]);
+  }, [currentUser]);
 
-  const getDaysInMonth = (monthYear) => {
-    const [month, year] = monthYear.split(' ');
-    const monthIndex = new Date(Date.parse(month + " 1, " + year)).getMonth();
-    return new Date(parseInt(year), monthIndex + 1, 0).getDate();
-  };
+  const getMonthName = (dateStr) => new Date(dateStr).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
-  const getAttendanceStatus = (day) => {
-    if (!attendanceData?.attendanceData) return 'none';
-    const dayData = attendanceData.attendanceData[day];
-    if (!dayData) return 'none';
-    return dayData.status || 'none';
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      'present': 'bg-green-500',
-      'absent': 'bg-red-500',
-      'holiday': 'bg-gray-400',
-      'half-day': 'bg-yellow-500',
-      'none': 'bg-gray-200'
-    };
-    return colors[status] || colors['none'];
-  };
-
-  const daysInMonth = getDaysInMonth(selectedMonth);
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-
-  const attendancePercentage = attendanceData?.attendancePercentage || 0;
-  const totalPresent = attendanceData?.totalPresent || 0;
-  const totalAbsent = attendanceData?.totalAbsent || 0;
-  const totalHolidays = attendanceData?.totalHolidays || 0;
+  const groupedByMonth = attendanceRecords.reduce((acc, record) => {
+    const month = getMonthName(record.date);
+    if (!acc[month]) acc[month] = [];
+    acc[month].push(record);
+    return acc;
+  }, {});
 
   return (
-    <>
-      <Helmet>
-        <title>Attendance - Student Portal</title>
-        <meta name="description" content="View your monthly attendance records" />
-      </Helmet>
-
-      <div className="min-h-screen bg-muted/30 pt-24 pb-12 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">Attendance</h1>
-            <p className="text-muted-foreground">View your monthly attendance records</p>
+    <div className="min-h-screen bg-muted/30 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="flex items-center gap-4 mb-8">
+          <Button variant="outline" size="icon" onClick={() => navigate('/student-dashboard')}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">My Attendance</h1>
+            <p className="text-sm text-slate-500">Track your daily attendance records</p>
           </div>
+        </div>
 
-          {/* Month Selector */}
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <Label className="font-medium">Select Month</Label>
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="April 2025">April 2025</SelectItem>
-                    <SelectItem value="May 2025">May 2025</SelectItem>
-                    <SelectItem value="June 2025">June 2025</SelectItem>
-                    <SelectItem value="July 2025">July 2025</SelectItem>
-                    <SelectItem value="August 2025">August 2025</SelectItem>
-                    <SelectItem value="September 2025">September 2025</SelectItem>
-                    <SelectItem value="October 2025">October 2025</SelectItem>
-                    <SelectItem value="November 2025">November 2025</SelectItem>
-                    <SelectItem value="December 2025">December 2025</SelectItem>
-                    <SelectItem value="January 2026">January 2026</SelectItem>
-                    <SelectItem value="February 2026">February 2026</SelectItem>
-                    <SelectItem value="March 2026">March 2026</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+          <Card className="border-0 shadow-md"><CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-[#1A3C8F]">{summary.percentage}%</div>
+            <div className="text-xs text-slate-500 mt-1">Attendance</div>
+          </CardContent></Card>
+          <Card className="border-0 shadow-md"><CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-slate-700">{summary.totalDays}</div>
+            <div className="text-xs text-slate-500 mt-1">Total Days</div>
+          </CardContent></Card>
+          <Card className="border-0 shadow-md"><CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">{summary.presentDays}</div>
+            <div className="text-xs text-slate-500 mt-1">Present</div>
+          </CardContent></Card>
+          <Card className="border-0 shadow-md"><CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-red-500">{summary.absentDays}</div>
+            <div className="text-xs text-slate-500 mt-1">Absent</div>
+          </CardContent></Card>
+        </div>
 
-          {loading ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading attendance...</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              {/* Calendar Grid */}
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle>Attendance Calendar</CardTitle>
+        <div className={`p-4 rounded-xl mb-8 flex items-center gap-3 ${parseFloat(summary.percentage) >= 75 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+          <TrendingUp className={`w-5 h-5 ${parseFloat(summary.percentage) >= 75 ? 'text-green-600' : 'text-red-500'}`} />
+          <div>
+            <div className={`font-semibold text-sm ${parseFloat(summary.percentage) >= 75 ? 'text-green-700' : 'text-red-600'}`}>
+              {parseFloat(summary.percentage) >= 75 ? 'Good Attendance!' : 'Attendance Below 75%'}
+            </div>
+            <div className="text-xs text-slate-500 mt-0.5">
+              {parseFloat(summary.percentage) >= 75 ? 'Keep it up! You are eligible for exams.' : 'Please improve your attendance.'}
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-20 text-slate-400">Loading attendance...</div>
+        ) : attendanceRecords.length === 0 ? (
+          <Card className="border-0 shadow-lg"><CardContent className="py-20 text-center">
+            <Calendar className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+            <p className="text-slate-500">No attendance records found</p>
+          </CardContent></Card>
+        ) : (
+          Object.entries(groupedByMonth).map(([month, records]) => {
+            const monthPresent = records.filter(r => r.status === 'Present').length;
+            const monthPercent = ((monthPresent / records.length) * 100).toFixed(0);
+            return (
+              <Card key={month} className="border-0 shadow-md mb-4">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base text-slate-700">{month}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">{monthPresent}/{records.length} days</span>
+                      <Badge className={`text-xs ${parseFloat(monthPercent) >= 75 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                        {monthPercent}%
+                      </Badge>
+                    </div>
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-7 gap-2 mb-4">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                      <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
-                        {day}
+                <CardContent className="pt-0">
+                  <div className="flex flex-wrap gap-2">
+                    {records.map((record) => (
+                      <div key={record.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${
+                        record.status === 'Present' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'
+                      }`}>
+                        {record.status === 'Present' ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {new Date(record.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                       </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-7 gap-2">
-                    {days.map((day) => {
-                      const status = getAttendanceStatus(day);
-                      return (
-                        <div
-                          key={day}
-                          className="aspect-square flex items-center justify-center rounded-lg border relative"
-                        >
-                          <span className="text-sm font-medium">{day}</span>
-                          <div className={`absolute bottom-1 w-2 h-2 rounded-full ${getStatusColor(status)}`}></div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Legend */}
-                  <div className="mt-6 pt-6 border-t">
-                    <div className="text-sm font-medium mb-3">Legend</div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                        <span className="text-sm">Present</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                        <span className="text-sm">Absent</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-gray-400"></div>
-                        <span className="text-sm">Holiday</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                        <span className="text-sm">Half Day</span>
-                      </div>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
-
-              {/* Summary */}
-              <Card className="mb-6">
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div>
-                      <div className="text-sm text-muted-foreground mb-1">Present</div>
-                      <div className="text-2xl font-bold text-green-600">{totalPresent}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground mb-1">Absent</div>
-                      <div className="text-2xl font-bold text-red-600">{totalAbsent}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground mb-1">Holidays</div>
-                      <div className="text-2xl font-bold text-gray-600">{totalHolidays}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground mb-1">Attendance</div>
-                      <div className="text-2xl font-bold" style={{ color: '#1A3C8F' }}>
-                        {attendancePercentage.toFixed(1)}%
-                      </div>
-                    </div>
-                  </div>
-
-                  {attendancePercentage < 75 && (
-                    <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200 flex items-start gap-3">
-                      <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-medium text-yellow-900 mb-1">
-                          Attendance below 75%
-                        </div>
-                        <p className="text-sm text-yellow-800">
-                          Please contact your class teacher to improve attendance
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Download Button */}
-              <Button className="w-full sm:w-auto" style={{ backgroundColor: '#1A3C8F' }}>
-                <Download className="w-4 h-4 mr-2" />
-                Download Attendance PDF
-              </Button>
-            </>
-          )}
-        </div>
+            );
+          })
+        )}
       </div>
-    </>
+    </div>
   );
 };
 

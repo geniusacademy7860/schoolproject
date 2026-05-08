@@ -1,254 +1,249 @@
-import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
-import { Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Download, Award, BookOpen } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx';
+import { Button } from '@/components/ui/button.jsx';
+import { Badge } from '@/components/ui/badge.jsx';
 import { useAuth } from '@/contexts/AuthContext';
 import pb from '@/lib/pocketbaseClient';
+import { toast } from 'sonner';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const ResultPage = () => {
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const [selectedExam, setSelectedExam] = useState('Unit Test 1');
-  const [resultData, setResultData] = useState(null);
+  const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [selectedResult, setSelectedResult] = useState(null);
+  const reportRef = useRef();
 
   useEffect(() => {
-    const fetchResult = async () => {
+    const fetchResults = async () => {
       if (!currentUser) return;
-
       try {
         const records = await pb.collection('results').getFullList({
-          filter: `studentId = "${currentUser.id}" && examType = "${selectedExam}"`,
+          filter: `studentId = "${currentUser.id}"`,
           sort: '-created',
           $autoCancel: false
         });
-
-        if (records.length > 0) {
-          setResultData(records[0]);
-        } else {
-          setResultData(null);
-        }
+        setResults(records);
+        if (records.length > 0) setSelectedResult(records[0]);
       } catch (error) {
-        console.error('Error fetching result:', error);
+        console.error('Error fetching results:', error);
+        toast.error('Failed to load results');
       } finally {
         setLoading(false);
       }
     };
+    fetchResults();
+  }, [currentUser]);
 
-    fetchResult();
-  }, [currentUser, selectedExam]);
-
-  const examTypes = ['Unit Test 1', 'Half Yearly', 'Annual Exam'];
-
-  const getGradeColor = (grade) => {
-    const colors = {
-      'A+': 'bg-green-100 text-green-800',
-      'A': 'bg-green-100 text-green-800',
-      'B+': 'bg-blue-100 text-blue-800',
-      'B': 'bg-blue-100 text-blue-800',
-      'C': 'bg-yellow-100 text-yellow-800',
-      'D': 'bg-orange-100 text-orange-800',
-      'F': 'bg-red-100 text-red-800'
-    };
-    return colors[grade] || 'bg-gray-100 text-gray-800';
+  const getGrade = (percentage) => {
+    if (percentage >= 90) return { grade: 'A+', color: 'text-green-600' };
+    if (percentage >= 80) return { grade: 'A', color: 'text-green-600' };
+    if (percentage >= 70) return { grade: 'B+', color: 'text-blue-600' };
+    if (percentage >= 60) return { grade: 'B', color: 'text-blue-600' };
+    if (percentage >= 50) return { grade: 'C', color: 'text-yellow-600' };
+    return { grade: 'F', color: 'text-red-600' };
   };
 
-  const chartData = resultData?.marksData ? Object.entries(resultData.marksData).map(([subject, data]) => ({
-    subject,
-    obtained: data.obtained || 0,
-    max: data.max || 100
-  })) : [];
+  const handleDownloadPDF = async () => {
+    if (!reportRef.current) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`ReportCard_${currentUser?.name}_${selectedResult?.examName || 'Exam'}.pdf`);
+      toast.success('Report card downloaded!');
+    } catch (error) {
+      toast.error('Failed to download PDF');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const subjects = selectedResult ? [
+    { name: 'Hindi', marks: selectedResult.hindi, total: selectedResult.hindiTotal || 100 },
+    { name: 'English', marks: selectedResult.english, total: selectedResult.englishTotal || 100 },
+    { name: 'Mathematics', marks: selectedResult.mathematics, total: selectedResult.mathematicsTotal || 100 },
+    { name: 'Science', marks: selectedResult.science, total: selectedResult.scienceTotal || 100 },
+    { name: 'Social Science', marks: selectedResult.socialScience, total: selectedResult.socialScienceTotal || 100 },
+  ].filter(s => s.marks !== undefined && s.marks !== null) : [];
+
+  const totalMarks = subjects.reduce((sum, s) => sum + (s.marks || 0), 0);
+  const totalMax = subjects.reduce((sum, s) => sum + (s.total || 100), 0);
+  const percentage = totalMax > 0 ? ((totalMarks / totalMax) * 100).toFixed(1) : 0;
+  const { grade, color } = getGrade(parseFloat(percentage));
 
   return (
-    <>
-      <Helmet>
-        <title>Results - Student Portal</title>
-        <meta name="description" content="View your exam results and report cards" />
-      </Helmet>
+    <div className="min-h-screen bg-muted/30 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-3xl mx-auto">
 
-      <div className="min-h-screen bg-muted/30 pt-24 pb-12 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">Exam Results</h1>
-            <p className="text-muted-foreground">View your exam performance and report cards</p>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="icon" onClick={() => navigate('/student-dashboard')}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">My Results</h1>
+              <p className="text-sm text-slate-500">View and download your report cards</p>
+            </div>
           </div>
-
-          {/* Exam Selector */}
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-            {examTypes.map((exam) => (
-              <Button
-                key={exam}
-                variant={selectedExam === exam ? 'default' : 'outline'}
-                onClick={() => setSelectedExam(exam)}
-                style={selectedExam === exam ? { backgroundColor: '#1A3C8F' } : {}}
-              >
-                {exam}
-              </Button>
-            ))}
-          </div>
-
-          {loading ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading results...</p>
-              </CardContent>
-            </Card>
-          ) : resultData ? (
-            <>
-              {/* Student Info */}
-              <Card className="mb-6">
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <div className="text-sm text-muted-foreground mb-1">Name</div>
-                      <div className="font-medium">{currentUser?.name}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground mb-1">Class</div>
-                      <div className="font-medium">{resultData.class}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground mb-1">Roll No</div>
-                      <div className="font-medium">{resultData.rollNo}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground mb-1">Exam Year</div>
-                      <div className="font-medium">{resultData.examYear}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Marks Table */}
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle>Subject-wise Marks</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Subject</TableHead>
-                        <TableHead className="text-right">Max Marks</TableHead>
-                        <TableHead className="text-right">Obtained</TableHead>
-                        <TableHead className="text-right">Grade</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {resultData.marksData && Object.entries(resultData.marksData).map(([subject, data]) => (
-                        <TableRow key={subject}>
-                          <TableCell className="font-medium">{subject}</TableCell>
-                          <TableCell className="text-right">{data.max}</TableCell>
-                          <TableCell className="text-right font-semibold">{data.obtained}</TableCell>
-                          <TableCell className="text-right">
-                            <Badge className={getGradeColor(data.grade)}>
-                              {data.grade}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="font-bold">
-                        <TableCell>Total</TableCell>
-                        <TableCell className="text-right">{resultData.maxTotalMarks}</TableCell>
-                        <TableCell className="text-right" style={{ color: '#1A3C8F' }}>
-                          {resultData.totalMarks}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Badge className={getGradeColor(resultData.grade)}>
-                            {resultData.grade}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-
-              {/* Result Summary */}
-              <div className="grid md:grid-cols-2 gap-6 mb-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Result Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Percentage</span>
-                      <span className="text-2xl font-bold" style={{ color: '#1A3C8F' }}>
-                        {resultData.percentage.toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Grade</span>
-                      <Badge className={`text-lg px-4 py-1 ${getGradeColor(resultData.grade)}`}>
-                        {resultData.grade}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Rank in Class</span>
-                      <span className="text-xl font-bold" style={{ color: '#1A3C8F' }}>
-                        {resultData.rank}{resultData.rank === 1 ? 'st' : resultData.rank === 2 ? 'nd' : resultData.rank === 3 ? 'rd' : 'th'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Status</span>
-                      <Badge className={resultData.status === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                        {resultData.status} {resultData.status === 'PASS' ? '✅' : '❌'}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Teacher's Remark</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">
-                      {resultData.teacherRemark || 'No remarks available'}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Chart */}
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle>Performance Chart</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="subject" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="obtained" fill="#1A3C8F" />
-                      <Bar dataKey="max" fill="#EAF0FB" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              {/* Download Button */}
-              <Button className="w-full sm:w-auto" style={{ backgroundColor: '#1A3C8F' }}>
-                <Download className="w-4 h-4 mr-2" />
-                Download Report Card PDF
-              </Button>
-            </>
-          ) : (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <p className="text-muted-foreground">No results available for {selectedExam}</p>
-              </CardContent>
-            </Card>
+          {selectedResult && (
+            <Button
+              onClick={handleDownloadPDF}
+              disabled={downloading}
+              className="bg-[#1A3C8F] hover:bg-[#152e6e]"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              {downloading ? 'Downloading...' : 'Download PDF'}
+            </Button>
           )}
         </div>
+
+        {/* Exam Selector */}
+        {results.length > 1 && (
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+            {results.map((result) => (
+              <button
+                key={result.id}
+                onClick={() => setSelectedResult(result)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                  selectedResult?.id === result.id
+                    ? 'bg-[#1A3C8F] text-white'
+                    : 'bg-white text-slate-600 border hover:bg-muted'
+                }`}
+              >
+                {result.examName || 'Exam'}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-center py-20 text-slate-400">Loading results...</div>
+        ) : results.length === 0 ? (
+          <Card className="border-0 shadow-lg">
+            <CardContent className="py-20 text-center">
+              <Award className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+              <p className="text-slate-500">No results found yet</p>
+            </CardContent>
+          </Card>
+        ) : (
+          /* Report Card — this div gets converted to PDF */
+          <div ref={reportRef} className="bg-white rounded-2xl shadow-lg overflow-hidden">
+
+            {/* Report Card Header */}
+            <div className="p-8 text-white text-center" style={{ background: 'linear-gradient(135deg, #1A3C8F 0%, #2563eb 100%)' }}>
+              <h2 className="text-2xl font-bold mb-1">Genius Academy Forbesganj</h2>
+              <p className="text-white/80 text-sm mb-4">Academic Report Card</p>
+              <div className="inline-block bg-white/20 rounded-xl px-6 py-2">
+                <span className="text-lg font-semibold">{selectedResult?.examName || 'Examination'}</span>
+              </div>
+            </div>
+
+            {/* Student Info */}
+            <div className="p-6 border-b bg-slate-50">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <div className="text-slate-500 mb-1">Student Name</div>
+                  <div className="font-semibold text-slate-800">{currentUser?.name}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500 mb-1">Roll Number</div>
+                  <div className="font-semibold text-slate-800">{currentUser?.rollNumber}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500 mb-1">Class</div>
+                  <div className="font-semibold text-slate-800">Class {currentUser?.class} - {currentUser?.section}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500 mb-1">Academic Year</div>
+                  <div className="font-semibold text-slate-800">{selectedResult?.academicYear || '2024-25'}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Marks Table */}
+            <div className="p-6">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50">
+                    <th className="text-left px-4 py-3 rounded-l-lg text-slate-500 font-medium">Subject</th>
+                    <th className="text-center px-4 py-3 text-slate-500 font-medium">Marks Obtained</th>
+                    <th className="text-center px-4 py-3 text-slate-500 font-medium">Maximum Marks</th>
+                    <th className="text-center px-4 py-3 rounded-r-lg text-slate-500 font-medium">Grade</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {subjects.map((subject) => {
+                    const subPercent = ((subject.marks / subject.total) * 100);
+                    const { grade: subGrade, color: subColor } = getGrade(subPercent);
+                    return (
+                      <tr key={subject.name}>
+                        <td className="px-4 py-3 font-medium text-slate-800">
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="w-4 h-4 text-slate-400" />
+                            {subject.name}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center font-semibold text-slate-800">{subject.marks}</td>
+                        <td className="px-4 py-3 text-center text-slate-500">{subject.total}</td>
+                        <td className={`px-4 py-3 text-center font-bold ${subColor}`}>{subGrade}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-[#EAF0FB]">
+                    <td className="px-4 py-3 font-bold text-slate-800 rounded-l-lg">Total</td>
+                    <td className="px-4 py-3 text-center font-bold text-slate-800">{totalMarks}</td>
+                    <td className="px-4 py-3 text-center font-bold text-slate-800">{totalMax}</td>
+                    <td className={`px-4 py-3 text-center font-bold text-xl ${color} rounded-r-lg`}>{grade}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Summary */}
+            <div className="p-6 pt-0">
+              <div className="grid grid-cols-3 gap-4 bg-slate-50 rounded-xl p-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-[#1A3C8F]">{percentage}%</div>
+                  <div className="text-xs text-slate-500 mt-1">Percentage</div>
+                </div>
+                <div className="text-center border-x border-slate-200">
+                  <div className={`text-2xl font-bold ${color}`}>{grade}</div>
+                  <div className="text-xs text-slate-500 mt-1">Overall Grade</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-slate-800">
+                    {selectedResult?.rank ? `${selectedResult.rank}${selectedResult.rank === 1 ? 'st' : selectedResult.rank === 2 ? 'nd' : selectedResult.rank === 3 ? 'rd' : 'th'}` : 'N/A'}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">Class Rank</div>
+                </div>
+              </div>
+
+              <div className="mt-4 text-center text-xs text-slate-400 border-t pt-4">
+                This is a computer generated report card — Genius Academy Forbesganj
+              </div>
+            </div>
+
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 };
 

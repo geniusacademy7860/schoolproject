@@ -13,11 +13,19 @@ const CoachingPage = () => {
 
   const batches = [
     {
+      title: 'Class 6-7-8',
+      subjects: 'Hindi, English, Math, Science, Social Science',
+      timing: 'Evening 4-6 PM',
+      seats: '10 seats left',
+      fees: 'Contact for fees',
+      featured: false
+    },
+    {
       title: 'Class 9 Foundation',
-      subjects: 'Math, Science, English, Hindi, SST',
+      subjects: 'All Subjects — Bihar Board',
       timing: 'Evening 5-7 PM',
       seats: '8 seats left',
-      fees: '₹800/month',
+      fees: 'Contact for fees',
       featured: false
     },
     {
@@ -25,54 +33,55 @@ const CoachingPage = () => {
       subjects: 'All Subjects + Board Preparation',
       timing: 'Morning 6-8 AM',
       seats: '5 seats left',
-      fees: '₹900/month',
+      fees: 'Contact for fees',
       featured: true
     },
     {
-      title: 'Class 11 Science/Commerce',
-      subjects: 'Physics, Chemistry, Biology/Accounts',
-      timing: 'Evening 5-7 PM',
-      seats: '12 seats left',
-      fees: '₹1000/month',
+      title: 'Class 11-12 Arts',
+      subjects: 'Hindi, English, History, Geography, Political Science',
+      timing: 'Morning 6-8 AM',
+      seats: '10 seats left',
+      fees: 'Contact for fees',
       featured: false
     },
     {
-      title: 'Class 12 Board+Entrance',
-      subjects: 'All Subjects + Competitive Prep',
-      timing: 'Morning 6-8 AM',
+      title: 'Class 11-12 Science',
+      subjects: 'Physics, Chemistry, Biology, Mathematics',
+      timing: 'Evening 5-7 PM',
       seats: '6 seats left',
-      fees: '₹1000/month',
+      fees: 'Contact for fees',
+      featured: false
+    },
+    {
+      title: 'Inter Special Classes',
+      subjects: 'Arts & Science — Extra Practice & Revision',
+      timing: 'Sunday 9 AM-12 PM',
+      seats: '15 seats left',
+      fees: 'Contact for fees',
       featured: false
     }
   ];
 
   const features = [
-    { icon: Users, title: 'Small Batch Size', description: 'Maximum 30 students per batch' },
+    { icon: Users, title: 'Small Batch Size', description: 'Personal attention to every student' },
     { icon: Award, title: 'Weekly Tests', description: 'Regular assessment and feedback' },
-    { icon: Calendar, title: 'Monthly PTM', description: 'Parent-Teacher meetings' },
-    { icon: TrendingUp, title: 'Board Exam Focused', description: 'Targeted preparation' },
-    { icon: CheckCircle, title: 'Top Results', description: '95%+ success rate' },
-    { icon: MessageCircle, title: 'Doubt Solving', description: 'Via WhatsApp group' }
+    { icon: Calendar, title: 'Monthly PTM', description: 'Parent-Teacher meetings every month' },
+    { icon: TrendingUp, title: 'Bihar Board Focused', description: 'Targeted board exam preparation' },
+    { icon: CheckCircle, title: 'Top Results', description: '100% passing record in board exams' },
+    { icon: MessageCircle, title: 'Doubt Solving', description: 'Via WhatsApp group anytime' }
   ];
 
   const timings = [
     { batch: 'Morning Batch', days: 'Monday - Saturday', time: '6:00 AM - 8:00 AM' },
     { batch: 'Evening Batch', days: 'Monday - Saturday', time: '5:00 PM - 7:00 PM' },
-    { batch: 'Sunday Special', days: 'Sunday', time: '9:00 AM - 12:00 PM' }
-  ];
-
-  const feeStructure = [
-    { class: 'Class 9', monthly: '₹800', admission: '₹500' },
-    { class: 'Class 10', monthly: '₹900', admission: '₹500' },
-    { class: 'Class 11', monthly: '₹1000', admission: '₹600' },
-    { class: 'Class 12', monthly: '₹1000', admission: '₹600' }
+    { batch: 'Sunday Special (Inter)', days: 'Sunday', time: '9:00 AM - 12:00 PM' }
   ];
 
   return (
     <>
       <Helmet>
-        <title>Genius Coaching Center - Expert Coaching for Class 9-12 | Forbesganj</title>
-        <meta name="description" content="Join Genius Coaching Center for specialized coaching in Science and Commerce for Class 9, 10, 11 & 12. Small batches, experienced faculty, and proven results." />
+        <title>Genius Coaching Center — Bihar Board Class 6 to 12 | Forbesganj</title>
+        <meta name="description" content="Genius Coaching Center Forbesganj — Bihar Board coaching for Class 6 to 12. Arts and Science streams. Special Inter classes. Contact: 82980 68098." />
       </Helmet>
 
       <Header />
@@ -80,25 +89,27 @@ const CoachingPage = () => {
       {/* Hero Section */}
       <section
         className="relative pt-24 pb-20 px-4 text-center"
-        style={{
-          background: 'linear-gradient(135deg, #1A3C8F 0%, #2563eb 100%)'
-        }}
+        style={{ background: 'linear-gradient(135deg, #1A3C8F 0%, #2563eb 100%)' }}
       >
         <div className="max-w-4xl mx-auto">
           <Badge className="mb-4 bg-white/20 text-white border-white/30 px-4 py-1.5">
-            Limited Seats Available
+            Bihar Board | Class 6 to 12
           </Badge>
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4" style={{ letterSpacing: '-0.02em' }}>
             Genius Coaching Center
           </h1>
-          <p className="text-xl text-white/90 mb-8">
-            Expert Coaching for Class 9, 10, 11 & 12 — Science & Commerce
+          <p className="text-xl text-white/90 mb-3">
+            Arts & Science Coaching — Class 6 to 12
+          </p>
+          <p className="text-base text-white/70 mb-8">
+            Special Classes for Inter (Arts & Science) | Forbesganj, Araria
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               size="lg"
               className="h-12 px-8"
               style={{ backgroundColor: '#F5A623', color: '#1C1C1C' }}
+              onClick={() => navigate('/admission')}
             >
               Enroll Now
             </Button>
@@ -106,9 +117,10 @@ const CoachingPage = () => {
               size="lg"
               variant="outline"
               className="h-12 px-8 bg-transparent text-white border-white hover:bg-white hover:text-primary"
+              onClick={() => window.location.href = 'tel:8298068098'}
             >
               <Phone className="w-4 h-4 mr-2" />
-              Call for Demo Class
+              Call: 82980 68098
             </Button>
           </div>
         </div>
@@ -123,7 +135,7 @@ const CoachingPage = () => {
             </h2>
             <p className="text-muted-foreground">Choose the right batch for your class</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {batches.map((batch, index) => (
               <Card
                 key={index}
@@ -133,12 +145,12 @@ const CoachingPage = () => {
                 {batch.featured && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <Badge style={{ backgroundColor: '#F5A623', color: '#1C1C1C' }}>
-                      ⭐ Most Popular
+                      Most Popular
                     </Badge>
                   </div>
                 )}
                 <CardHeader>
-                  <CardTitle className="text-xl">{batch.title}</CardTitle>
+                  <CardTitle className="text-lg">{batch.title}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
@@ -156,11 +168,11 @@ const CoachingPage = () => {
                     </div>
                   </div>
                   <div className="pt-3 border-t flex items-center justify-between">
-                    <div className="text-2xl font-bold" style={{ color: '#1A3C8F' }}>
-                      {batch.fees}
-                    </div>
+                    <div className="text-sm font-medium text-slate-600">{batch.fees}</div>
                     <Button
+                      size="sm"
                       style={batch.featured ? { backgroundColor: '#F5A623', color: '#1C1C1C' } : {}}
+                      onClick={() => window.location.href = 'tel:8298068098'}
                     >
                       Enroll
                     </Button>
@@ -177,8 +189,9 @@ const CoachingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ letterSpacing: '-0.02em' }}>
-              Subjects We Offer
+              Streams We Offer
             </h2>
+            <p className="text-muted-foreground">Bihar Board — Arts & Science only</p>
           </div>
           <div className="grid md:grid-cols-2 gap-8">
             <Card>
@@ -192,7 +205,7 @@ const CoachingPage = () => {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2">
-                  {['Physics', 'Chemistry', 'Biology', 'Mathematics'].map((subject) => (
+                  {['Physics', 'Chemistry', 'Biology', 'Mathematics', 'English'].map((subject) => (
                     <li key={subject} className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4" style={{ color: '#27AE60' }} />
                       <span>{subject}</span>
@@ -207,12 +220,12 @@ const CoachingPage = () => {
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#EAF0FB' }}>
                     <Award className="w-5 h-5" style={{ color: '#1A3C8F' }} />
                   </div>
-                  Commerce Stream
+                  Arts Stream
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2">
-                  {['Accountancy', 'Business Studies', 'Economics', 'Mathematics'].map((subject) => (
+                  {['Hindi', 'English', 'History', 'Geography', 'Political Science', 'Economics'].map((subject) => (
                     <li key={subject} className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4" style={{ color: '#27AE60' }} />
                       <span>{subject}</span>
@@ -230,7 +243,7 @@ const CoachingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ letterSpacing: '-0.02em' }}>
-              Why Choose Us?
+              Why Choose Genius Coaching?
             </h2>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -282,92 +295,37 @@ const CoachingPage = () => {
         </div>
       </section>
 
-      {/* Fee Structure */}
-      <section className="py-20 bg-background">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ letterSpacing: '-0.02em' }}>
-              Fee Structure
-            </h2>
-          </div>
-          <Card>
-            <CardContent className="p-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Monthly Fee</TableHead>
-                    <TableHead>Admission Fee</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {feeStructure.map((fee, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{fee.class}</TableCell>
-                      <TableCell className="font-semibold" style={{ color: '#1A3C8F' }}>{fee.monthly}</TableCell>
-                      <TableCell>{fee.admission}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Toppers Section */}
-      <section className="py-20 bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ letterSpacing: '-0.02em' }}>
-              Our Toppers
-            </h2>
-            <p className="text-muted-foreground">Proud of our students' achievements</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <Card key={i}>
-                <CardContent className="p-6 text-center">
-                  <img
-                    src="https://images.unsplash.com/photo-1635402689379-545b134e58ed"
-                    alt="Student group"
-                    className="w-full h-48 object-cover rounded-lg mb-4"
-                  />
-                  <h3 className="font-semibold mb-1">Class 10 - 2024</h3>
-                  <p className="text-sm text-muted-foreground">95.2% Average Score</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA Banner */}
       <section className="py-20" style={{ backgroundColor: '#F5A623' }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: '#1C1C1C', letterSpacing: '-0.02em' }}>
-            Seats are Filling Fast — Enroll Today!
+            Seats Filling Fast — Enroll Today!
           </h2>
-          <p className="text-lg mb-8" style={{ color: '#1C1C1C', opacity: 0.9 }}>
-            Limited seats available for the upcoming session
+          <p className="text-lg mb-2" style={{ color: '#1C1C1C', opacity: 0.9 }}>
+            Class 6 to 12 | Bihar Board | Arts & Science
+          </p>
+          <p className="text-base mb-8" style={{ color: '#1C1C1C', opacity: 0.8 }}>
+            Dhatta Tola, Genius Academy Road, Forbesganj, Araria
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               size="lg"
               className="h-12 px-8 bg-white hover:bg-white/90"
               style={{ color: '#1A3C8F' }}
+              onClick={() => window.location.href = 'https://wa.me/918298068098'}
             >
               <MessageCircle className="w-4 h-4 mr-2" />
-              WhatsApp Now
+              WhatsApp: 82980 68098
             </Button>
             <Button
               size="lg"
               variant="outline"
-              className="h-12 px-8 border-white hover:bg-white/10"
-              style={{ color: '#1C1C1C', borderColor: '#1C1C1C' }}
+              className="h-12 px-8 border-[#1C1C1C] hover:bg-black/10"
+              style={{ color: '#1C1C1C' }}
+              onClick={() => window.location.href = 'tel:9852140097'}
             >
               <Phone className="w-4 h-4 mr-2" />
-              Call Now
+              Call: 98521 40097
             </Button>
           </div>
         </div>

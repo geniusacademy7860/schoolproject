@@ -1,0 +1,5 @@
+node_modules
+.vite
+dist
+.env
+pb_data
