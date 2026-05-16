@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Save, Building, ShieldCheck, UserCircle } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout.jsx';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card.jsx';
@@ -7,80 +7,117 @@ import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { useAdminAuth } from '@/contexts/AdminAuthcontext';
 import { toast } from 'sonner';
-import pb from '@/lib/pocketbaseClient.js';
+import { supabase } from '@/lib/supabaseClient.js';
 
 const SettingsPage = () => {
   const { currentAdmin } = useAdminAuth();
-  const [profileForm, setProfileForm] = useState({ name: '', email: '' });
-  const [schoolSettings, setSchoolSettings] = useState({ id: '', schoolName: '', schoolAddress: '', schoolPhone: '', schoolEmail: '', schoolWebsite: '' });
-  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', password: '', passwordConfirm: '' });
+
+  const [adminName, setAdminName] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+
+  const [schoolName, setSchoolName] = useState('');
+  const [schoolAddress, setSchoolAddress] = useState('');
+  const [schoolPhone, setSchoolPhone] = useState('');
+  const [schoolEmail, setSchoolEmail] = useState('');
+  const [schoolWebsite, setSchoolWebsite] = useState('');
+  const [schoolSettingId, setSchoolSettingId] = useState(null);
   const [savingSchool, setSavingSchool] = useState(false);
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     if (currentAdmin) {
-      setProfileForm({ name: currentAdmin.name || '', email: currentAdmin.email || '' });
+      setAdminName(currentAdmin.name || '');
+      setAdminEmail(currentAdmin.email || '');
     }
+
+    const fetchSchoolSettings = async () => {
+      const { data } = await supabase
+        .from('school_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setSchoolSettingId(data.id);
+        setSchoolName(data.school_name || '');
+        setSchoolAddress(data.school_address || '');
+        setSchoolPhone(data.school_phone || '');
+        setSchoolEmail(data.school_email || '');
+        setSchoolWebsite(data.school_website || '');
+      }
+    };
     fetchSchoolSettings();
   }, [currentAdmin]);
 
-  const fetchSchoolSettings = async () => {
-    try {
-      const records = await pb.collection('SchoolSetting').getFullList({ $autoCancel: false });
-      if (records.length > 0) setSchoolSettings(records[0]);
-    } catch (error) {
-      console.error('Error fetching school settings:', error);
-    }
-  };
-
   const handleSaveProfile = async () => {
     setSavingProfile(true);
-    try {
-      await pb.collection('Admin').update(currentAdmin.id, { name: profileForm.name });
-      toast.success('Profile updated successfully');
-    } catch (error) {
-      toast.error('Failed to update profile');
-    } finally {
-      setSavingProfile(false);
-    }
+    const { error } = await supabase
+      .from('admins')
+      .update({ name: adminName })
+      .eq('id', currentAdmin.id);
+
+    if (!error) toast.success('Profile updated');
+    else toast.error('Failed to update profile');
+    setSavingProfile(false);
   };
 
   const handleSaveSchool = async () => {
     setSavingSchool(true);
     try {
-      if (schoolSettings.id) {
-        await pb.collection('SchoolSetting').update(schoolSettings.id, schoolSettings);
+      const save = {
+        school_name: schoolName,
+        school_address: schoolAddress,
+        school_phone: schoolPhone,
+        school_email: schoolEmail,
+        school_website: schoolWebsite,
+      };
+
+      if (schoolSettingId) {
+        const { error } = await supabase
+          .from('school_settings')
+          .update(save)
+          .eq('id', schoolSettingId);
+        if (error) throw error;
       } else {
-        await pb.collection('SchoolSetting').create(schoolSettings);
+        const { data, error } = await supabase
+          .from('school_settings')
+          .insert([save])
+          .select()
+          .single();
+        if (error) throw error;
+        setSchoolSettingId(data.id);
       }
       toast.success('School settings saved');
-    } catch (error) {
-      toast.error('Failed to save school settings');
+    } catch (e) {
+      toast.error('Failed: ' + e.message);
     } finally {
       setSavingSchool(false);
     }
   };
 
   const handleChangePassword = async () => {
-    if (passwordForm.password !== passwordForm.passwordConfirm) {
-      toast.error('New passwords do not match');
-      return;
-    }
+    if (!newPassword) { toast.error('Please enter new password'); return; }
+    if (newPassword.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+    if (newPassword !== confirmPassword) { toast.error('Passwords do not match'); return; }
+
     setSavingPassword(true);
-    try {
-      await pb.collection('Admin').update(currentAdmin.id, {
-        oldPassword: passwordForm.oldPassword,
-        password: passwordForm.password,
-        passwordConfirm: passwordForm.passwordConfirm
-      });
+    const { error } = await supabase
+      .from('admins')
+      .update({ password: newPassword })
+      .eq('id', currentAdmin.id);
+
+    if (!error) {
       toast.success('Password changed successfully');
-      setPasswordForm({ oldPassword: '', password: '', passwordConfirm: '' });
-    } catch (error) {
-      toast.error('Failed to change password');
-    } finally {
-      setSavingPassword(false);
+      setNewPassword('');
+      setConfirmPassword('');
+    } else {
+      toast.error('Failed: ' + error.message);
     }
+    setSavingPassword(false);
   };
 
   return (
@@ -91,7 +128,8 @@ const SettingsPage = () => {
           <p className="text-slate-500 text-sm mt-1">Manage your profile and school information</p>
         </div>
 
-        <Card className="shadow-sm border-0">
+        {/* Admin Profile */}
+        <Card className="border-0 shadow-sm">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#EAF0FB] flex items-center justify-center">
@@ -99,27 +137,43 @@ const SettingsPage = () => {
               </div>
               <div>
                 <CardTitle className="text-base">Admin Profile</CardTitle>
-                <CardDescription>Update your name and email</CardDescription>
+                <CardDescription>Update your name</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Full Name</Label>
-              <Input value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} placeholder="Admin Name" />
+              <Label htmlFor="adminName">Full Name</Label>
+              <Input
+                id="adminName"
+                value={adminName}
+                onChange={e => setAdminName(e.target.value)}
+                placeholder="Admin name"
+              />
             </div>
             <div className="space-y-2">
-              <Label>Email</Label>
-              <Input value={profileForm.email} disabled className="bg-muted" />
+              <Label htmlFor="adminEmail">Email</Label>
+              <Input
+                id="adminEmail"
+                value={adminEmail}
+                disabled
+                className="bg-muted"
+              />
               <p className="text-xs text-muted-foreground">Email cannot be changed</p>
             </div>
-            <Button onClick={handleSaveProfile} disabled={savingProfile} className="bg-[#1A3C8F] hover:bg-[#152e6e]">
-              <Save className="w-4 h-4 mr-2" />{savingProfile ? 'Saving...' : 'Save Profile'}
+            <Button
+              onClick={handleSaveProfile}
+              disabled={savingProfile}
+              className="bg-[#1A3C8F] hover:bg-[#152e6e]"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {savingProfile ? 'Saving...' : 'Save Profile'}
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-0">
+        {/* School Information */}
+        <Card className="border-0 shadow-sm">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#EAF0FB] flex items-center justify-center">
@@ -134,33 +188,64 @@ const SettingsPage = () => {
           <CardContent className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>School Name</Label>
-                <Input value={schoolSettings.schoolName} onChange={(e) => setSchoolSettings({ ...schoolSettings, schoolName: e.target.value })} placeholder="Genius Academy Forbesganj" />
+                <Label htmlFor="schoolName">School Name</Label>
+                <Input
+                  id="schoolName"
+                  value={schoolName}
+                  onChange={e => setSchoolName(e.target.value)}
+                  placeholder="Genius Academy Forbesganj"
+                />
               </div>
               <div className="space-y-2">
-                <Label>Phone Number</Label>
-                <Input value={schoolSettings.schoolPhone} onChange={(e) => setSchoolSettings({ ...schoolSettings, schoolPhone: e.target.value })} placeholder="+91 98765 43210" />
+                <Label htmlFor="schoolPhone">Phone Number</Label>
+                <Input
+                  id="schoolPhone"
+                  value={schoolPhone}
+                  onChange={e => setSchoolPhone(e.target.value)}
+                  placeholder="+91 82980 68098"
+                />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
-                <Input value={schoolSettings.schoolEmail} onChange={(e) => setSchoolSettings({ ...schoolSettings, schoolEmail: e.target.value })} placeholder="info@geniusacademy.edu.in" />
+                <Label htmlFor="schoolEmailField">School Email</Label>
+                <Input
+                  id="schoolEmailField"
+                  value={schoolEmail}
+                  onChange={e => setSchoolEmail(e.target.value)}
+                  placeholder="school@gmail.com"
+                />
               </div>
               <div className="space-y-2">
-                <Label>Website</Label>
-                <Input value={schoolSettings.schoolWebsite} onChange={(e) => setSchoolSettings({ ...schoolSettings, schoolWebsite: e.target.value })} placeholder="www.geniusacademy.edu.in" />
+                <Label htmlFor="schoolWebsite">Website</Label>
+                <Input
+                  id="schoolWebsite"
+                  value={schoolWebsite}
+                  onChange={e => setSchoolWebsite(e.target.value)}
+                  placeholder="www.geniusacademy.in"
+                />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Address</Label>
-              <Input value={schoolSettings.schoolAddress} onChange={(e) => setSchoolSettings({ ...schoolSettings, schoolAddress: e.target.value })} placeholder="Main Road, Forbesganj, Bihar" />
+              <Label htmlFor="schoolAddress">Address</Label>
+              <Input
+                id="schoolAddress"
+                value={schoolAddress}
+                onChange={e => setSchoolAddress(e.target.value)}
+                placeholder="Dhatta Tola, Genius Academy Road, Forbesganj"
+              />
             </div>
-            <Button onClick={handleSaveSchool} disabled={savingSchool} className="bg-[#1A3C8F] hover:bg-[#152e6e]">
-              <Save className="w-4 h-4 mr-2" />{savingSchool ? 'Saving...' : 'Save School Info'}
+            <Button
+              onClick={handleSaveSchool}
+              disabled={savingSchool}
+              className="bg-[#1A3C8F] hover:bg-[#152e6e]"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {savingSchool ? 'Saving...' : 'Save School Info'}
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-0">
+        {/* Change Password */}
+        <Card className="border-0 shadow-sm">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#EAF0FB] flex items-center justify-center">
@@ -168,28 +253,42 @@ const SettingsPage = () => {
               </div>
               <div>
                 <CardTitle className="text-base">Change Password</CardTitle>
-                <CardDescription>Update your admin password</CardDescription>
+                <CardDescription>Update your admin login password</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Current Password</Label>
-              <Input type="password" value={passwordForm.oldPassword} onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })} placeholder="••••••••" />
+              <Label htmlFor="newPass">New Password</Label>
+              <Input
+                id="newPass"
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Min 6 characters"
+              />
             </div>
             <div className="space-y-2">
-              <Label>New Password</Label>
-              <Input type="password" value={passwordForm.password} onChange={(e) => setPasswordForm({ ...passwordForm, password: e.target.value })} placeholder="••••••••" />
+              <Label htmlFor="confirmPass">Confirm Password</Label>
+              <Input
+                id="confirmPass"
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Repeat new password"
+              />
             </div>
-            <div className="space-y-2">
-              <Label>Confirm New Password</Label>
-              <Input type="password" value={passwordForm.passwordConfirm} onChange={(e) => setPasswordForm({ ...passwordForm, passwordConfirm: e.target.value })} placeholder="••••••••" />
-            </div>
-            <Button onClick={handleChangePassword} disabled={savingPassword} className="bg-[#1A3C8F] hover:bg-[#152e6e]">
-              <ShieldCheck className="w-4 h-4 mr-2" />{savingPassword ? 'Changing...' : 'Change Password'}
+            <Button
+              onClick={handleChangePassword}
+              disabled={savingPassword}
+              className="bg-[#1A3C8F] hover:bg-[#152e6e]"
+            >
+              <ShieldCheck className="w-4 h-4 mr-2" />
+              {savingPassword ? 'Changing...' : 'Change Password'}
             </Button>
           </CardContent>
         </Card>
+
       </div>
     </AdminLayout>
   );

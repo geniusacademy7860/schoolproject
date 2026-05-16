@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.j
 import { Button } from '@/components/ui/button.jsx';
 import { Badge } from '@/components/ui/badge.jsx';
 import { useAuth } from '@/contexts/AuthContext';
-import pb from '@/lib/pocketbaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 
 const AttendancePage = () => {
@@ -16,22 +16,27 @@ const AttendancePage = () => {
   const [summary, setSummary] = useState({ totalDays: 0, presentDays: 0, absentDays: 0, percentage: 0 });
 
   useEffect(() => {
+    if (!currentUser) return;
     const fetchAttendance = async () => {
-      if (!currentUser) return;
       try {
-        const records = await pb.collection('attendece').getFullList({
-          filter: `studentId = "${currentUser.id}"`,
-          sort: '-date',
-          $autoCancel: false
-        });
+        const { data, error } = await supabase
+          .from('attendance')
+          .select('*')
+          .eq('student_id', currentUser.id)
+          .order('date', { ascending: false });
+
+        if (error) throw error;
+
+        const records = data || [];
         setAttendanceRecords(records);
+
         const totalDays = records.length;
-        const presentDays = records.filter(r => r.status === 'Present').length;
+        const presentDays = records.filter(r => r.status === 'present').length;
         const absentDays = totalDays - presentDays;
         const percentage = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(1) : 0;
         setSummary({ totalDays, presentDays, absentDays, percentage });
       } catch (error) {
-        toast.error('Failed to load attendance');
+        toast.error('Failed to load: ' + error.message);
       } finally {
         setLoading(false);
       }
@@ -39,10 +44,8 @@ const AttendancePage = () => {
     fetchAttendance();
   }, [currentUser]);
 
-  const getMonthName = (dateStr) => new Date(dateStr).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-
   const groupedByMonth = attendanceRecords.reduce((acc, record) => {
-    const month = getMonthName(record.date);
+    const month = new Date(record.date).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
     if (!acc[month]) acc[month] = [];
     acc[month].push(record);
     return acc;
@@ -93,7 +96,7 @@ const AttendancePage = () => {
         </div>
 
         {loading ? (
-          <div className="text-center py-20 text-slate-400">Loading attendance...</div>
+          <div className="text-center py-20 text-slate-400">Loading...</div>
         ) : attendanceRecords.length === 0 ? (
           <Card className="border-0 shadow-lg"><CardContent className="py-20 text-center">
             <Calendar className="w-12 h-12 mx-auto mb-4 text-slate-300" />
@@ -101,7 +104,7 @@ const AttendancePage = () => {
           </CardContent></Card>
         ) : (
           Object.entries(groupedByMonth).map(([month, records]) => {
-            const monthPresent = records.filter(r => r.status === 'Present').length;
+            const monthPresent = records.filter(r => r.status === 'present').length;
             const monthPercent = ((monthPresent / records.length) * 100).toFixed(0);
             return (
               <Card key={month} className="border-0 shadow-md mb-4">
@@ -110,20 +113,16 @@ const AttendancePage = () => {
                     <CardTitle className="text-base text-slate-700">{month}</CardTitle>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-slate-500">{monthPresent}/{records.length} days</span>
-                      <Badge className={`text-xs ${parseFloat(monthPercent) >= 75 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                        {monthPercent}%
-                      </Badge>
+                      <Badge className={`text-xs ${parseFloat(monthPercent) >= 75 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>{monthPercent}%</Badge>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="flex flex-wrap gap-2">
-                    {records.map((record) => (
-                      <div key={record.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                        record.status === 'Present' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'
-                      }`}>
-                        {record.status === 'Present' ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                        {new Date(record.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                    {records.map(record => (
+                      <div key={record.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${record.status === 'present' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                        {record.status === 'present' ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {record.date}
                       </div>
                     ))}
                   </div>

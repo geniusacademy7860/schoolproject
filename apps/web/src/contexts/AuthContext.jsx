@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import pb from '@/lib/pocketbaseClient';
+import { supabase } from '@/lib/supabaseClient';
 
 const AuthContext = createContext(null);
 
@@ -11,68 +11,70 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [userType, setUserType] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
-    if (pb.authStore.isValid && pb.authStore.model) {
-      setCurrentUser(pb.authStore.model);
-      setUserType(pb.authStore.model.collectionName);
-      setIsAuthenticated(true);
+    try {
+      const saved = localStorage.getItem('genius_student');
+      if (saved) {
+        setCurrentUser(JSON.parse(saved));
+        setIsAuthenticated(true);
+      }
+    } catch (e) {
+      localStorage.removeItem('genius_student');
     }
     setInitialLoading(false);
   }, []);
 
   const loginStudent = async (email, password) => {
-    try {
-      const authData = await pb.collection('Student').authWithPassword(
-        email, password, { $autoCancel: false }
-      );
-      setCurrentUser(authData.record);
-      setUserType('Student');
-      setIsAuthenticated(true);
-      return authData.record;
-    } catch (error) {
-      throw new Error('Invalid email or password');
-    }
-  };
+    const { data, error } = await supabase
+      .from('Students')
+      .select('*')
+      .eq('email', email.trim())
+      .eq('password', password.trim())
+      .maybeSingle();
 
-  const loginAdmin = async (email, password) => {
-    try {
-      const authData = await pb.collection('Admin').authWithPassword(
-        email, password, { $autoCancel: false }
-      );
-      setCurrentUser(authData.record);
-      setUserType('Admin');
-      setIsAuthenticated(true);
-      return authData.record;
-    } catch (error) {
-      throw new Error('Invalid email or password');
-    }
+    if (error) throw new Error('Database error: ' + error.message);
+    if (!data) throw new Error('Invalid email or password');
+
+    const student = {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      rollNumber: data.roll_number?.toString(),
+      class: data.class,
+      section: data.section,
+      fatherName: data.father_name,
+      motherName: data.mother_name,
+      fatherMobile: data.father_mobile,
+    };
+
+    localStorage.setItem('genius_student', JSON.stringify(student));
+    setCurrentUser(student);
+    setIsAuthenticated(true);
+    return student;
   };
 
   const logout = () => {
-    pb.authStore.clear();
+    localStorage.removeItem('genius_student');
     setCurrentUser(null);
-    setUserType(null);
     setIsAuthenticated(false);
   };
 
   if (initialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
     <AuthContext.Provider value={{
-      currentUser, userType, loginStudent, loginAdmin, logout,
-      isAuthenticated,
-      isStudent: userType === 'Student',
-      isAdmin: userType === 'Admin'
+      currentUser, loginStudent, logout,
+      isAuthenticated, isStudent: !!currentUser,
+      initialLoading,
     }}>
       {children}
     </AuthContext.Provider>
